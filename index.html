@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ruído Loop</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -592,6 +597,90 @@
     }
     window.addEventListener('resize', resizeCanvases);
     setTimeout(resizeCanvases, 100);
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    // Media Session API — keeps audio alive in background and shows controls on lock screen
+    function updateMediaSession(noiseName, playing) {
+      if (!('mediaSession' in navigator)) return;
+      if (playing) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Ruído ' + noiseName,
+          artist: 'Ruído Loop',
+          album: 'Sons Ambiente',
+          artwork: [
+            { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+        navigator.mediaSession.playbackState = 'playing';
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+          NOISES.forEach(n => {
+            if (noiseStates[n.id].playing) {
+              stopNoise(n.id);
+              updateCardUI(n.id);
+              updateMediaSession(n.name, false);
+            }
+          });
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          // Resume the last active noise type
+          const lastId = NOISES.find(n => n.name === noiseName)?.id;
+          if (lastId && !noiseStates[lastId].playing) {
+            startNoise(lastId);
+            updateCardUI(lastId);
+            updateMediaSession(noiseName, true);
+          }
+        });
+      } else {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    }
+
+    // Patch toggleNoise to update Media Session
+    const _originalToggle = toggleNoise;
+    toggleNoise = function(id) {
+      const wasPlaying = noiseStates[id].playing;
+      _originalToggle(id);
+      const noise = NOISES.find(n => n.id === id);
+      updateMediaSession(noise.name, !wasPlaying);
+    };
+
+    // Wake Lock API — prevents screen/CPU sleep
+    let wakeLock = null;
+    async function requestWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) { /* user denied or not supported */ }
+    }
+    function releaseWakeLock() {
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    // Patch start/stop to manage wake lock
+    const _origStart = startNoise;
+    startNoise = function(id) { _origStart(id); requestWakeLock(); };
+    const _origStop = stopNoise;
+    stopNoise = function(id) {
+      _origStop(id);
+      const anyPlaying = NOISES.some(n => noiseStates[n.id].playing);
+      if (!anyPlaying) releaseWakeLock();
+    };
+
+    // Re-acquire wake lock when page becomes visible again
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const anyPlaying = NOISES.some(n => noiseStates[n.id].playing);
+        if (anyPlaying) requestWakeLock();
+      }
+    });
   </script>
 </body>
 </html>

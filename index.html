@@ -580,6 +580,28 @@
       });
     }
 
+    // Silent audio keeper — forces Android to maintain an active media session
+    // This is a tiny WAV file (silence) that tricks the browser into keeping audio alive
+    const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+    silentAudio.loop = true;
+    silentAudio.volume = 0.01;
+
+    function startSilentAudio() {
+      silentAudio.play().catch(() => {});
+    }
+    function stopSilentAudio() {
+      silentAudio.pause();
+      silentAudio.currentTime = 0;
+    }
+
+    // Resume AudioContext if it gets suspended in background
+    function ensureAudioContext() {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    setInterval(ensureAudioContext, 1000);
+
     // Init
     buildGrid();
     animateWaveforms();
@@ -664,14 +686,21 @@
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
     }
 
-    // Patch start/stop to manage wake lock
+    // Patch start/stop to manage wake lock and silent audio keeper
     const _origStart = startNoise;
-    startNoise = function(id) { _origStart(id); requestWakeLock(); };
+    startNoise = function(id) {
+      _origStart(id);
+      startSilentAudio();
+      requestWakeLock();
+    };
     const _origStop = stopNoise;
     stopNoise = function(id) {
       _origStop(id);
       const anyPlaying = NOISES.some(n => noiseStates[n.id].playing);
-      if (!anyPlaying) releaseWakeLock();
+      if (!anyPlaying) {
+        stopSilentAudio();
+        releaseWakeLock();
+      }
     };
 
     // Re-acquire wake lock when page becomes visible again

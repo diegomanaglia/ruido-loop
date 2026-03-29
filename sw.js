@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ruido-loop-v1';
+const CACHE_NAME = 'ruido-loop-v2';
 const ASSETS = [
   './',
   './index.html',

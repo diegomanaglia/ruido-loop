@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruído Loop</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔊</text></svg>">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a2e;
+      --bg-card-hover: #222240;
+      --purple-primary: #8b5cf6;
+      --purple-secondary: #a78bfa;
+      --purple-glow: rgba(139, 92, 246, 0.3);
+      --lime-primary: #c4f72a;
+      --lime-secondary: #d4ff4a;
+      --lime-glow: rgba(196, 247, 42, 0.3);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888a0;
+      --border-color: rgba(139, 92, 246, 0.15);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background ambient effect */
+    .bg-ambient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-ambient::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(196, 247, 42, 0.04) 0%, transparent 50%);
+      animation: ambientShift 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes ambientShift {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(-5%, -5%) rotate(3deg); }
+    }
+
+    /* Header */
+    .header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 3rem 1.5rem 1rem;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--purple-primary), var(--lime-primary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--purple-secondary), var(--lime-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+    }
+
+    /* Grid */
+    .grid {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem 3rem;
+    }
+
+    /* Noise Card */
+    .noise-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .noise-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--card-accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .noise-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(139, 92, 246, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .noise-card.active {
+      border-color: var(--card-accent);
+      box-shadow: 0 0 30px var(--card-glow);
+    }
+
+    .noise-card.active::before {
+      opacity: 1;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: var(--card-bg-icon);
+      color: var(--card-accent);
+      flex-shrink: 0;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .card-subtitle {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    /* Toggle button */
+    .toggle-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .toggle-btn:hover {
+      border-color: var(--card-accent);
+      color: var(--card-accent);
+      background: var(--card-bg-icon);
+    }
+
+    .toggle-btn.playing {
+      border-color: var(--card-accent);
+      background: var(--card-accent);
+      color: var(--bg-primary);
+      box-shadow: 0 0 20px var(--card-glow);
+    }
+
+    .toggle-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Waveform visualizer */
+    .waveform {
+      height: 32px;
+      margin-top: 0.75rem;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .waveform canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Color themes per noise type */
+    .noise-card[data-noise="white"] {
+      --card-accent: #e0e0e8;
+      --card-glow: rgba(224, 224, 232, 0.2);
+      --card-bg-icon: rgba(224, 224, 232, 0.1);
+    }
+    .noise-card[data-noise="pink"] {
+      --card-accent: #f472b6;
+      --card-glow: rgba(244, 114, 182, 0.2);
+      --card-bg-icon: rgba(244, 114, 182, 0.1);
+    }
+    .noise-card[data-noise="brown"] {
+      --card-accent: #d97706;
+      --card-glow: rgba(217, 119, 6, 0.2);
+      --card-bg-icon: rgba(217, 119, 6, 0.1);
+    }
+    .noise-card[data-noise="green"] {
+      --card-accent: var(--lime-primary);
+      --card-glow: var(--lime-glow);
+      --card-bg-icon: rgba(196, 247, 42, 0.1);
+    }
+    .noise-card[data-noise="blue"] {
+      --card-accent: #60a5fa;
+      --card-glow: rgba(96, 165, 250, 0.2);
+      --card-bg-icon: rgba(96, 165, 250, 0.1);
+    }
+    .noise-card[data-noise="violet"] {
+      --card-accent: var(--purple-secondary);
+      --card-glow: var(--purple-glow);
+      --card-bg-icon: rgba(167, 139, 250, 0.1);
+    }
+
+    /* Footer */
+    .footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header { padding: 2rem 1rem 0.5rem; }
+      .grid { grid-template-columns: 1fr; padding: 1rem; }
+      .noise-card { padding: 1.25rem; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="bg-ambient"></div>
+
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">〰</div>
+      <h1>Ruído Loop</h1>
+    </div>
+    <p>Gerador de sons ambiente para foco e relaxamento</p>
+  </header>
+
+  <div class="grid" id="noiseGrid"></div>
+
+  <footer class="footer">
+    Ruído Loop &mdash; Sons gerados via Web Audio API
+  </footer>
+
+  <script>
+    const NOISES = [
+      { id: 'white',  name: 'Branco',  sub: 'Frequências iguais · foco total',     icon: 'W' },
+      { id: 'pink',   name: 'Rosa',    sub: 'Suave e equilibrado · relaxamento',    icon: 'P' },
+      { id: 'brown',  name: 'Marrom',  sub: 'Grave e profundo · sono e meditação',  icon: 'M' },
+      { id: 'green',  name: 'Verde',   sub: 'Natural e orgânico · tranquilidade',   icon: 'V' },
+      { id: 'blue',   name: 'Azul',    sub: 'Brilhante e energético · atenção',     icon: 'A' },
+      { id: 'violet', name: 'Violeta', sub: 'Agudo e intenso · criatividade',       icon: 'VI' },
+    ];
+
+    const playSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
+    const pauseSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`;
+
+    let audioCtx = null;
+    const noiseStates = {};
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Noise generation functions
+    function createWhiteNoise(ctx, duration) {
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      return buffer;
+    }
+
+    function createPinkNoise(ctx, duration) {
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+        b6 = white * 0.115926;
+      }
+      return buffer;
+    }
+
+    function createBrownNoise(ctx, duration) {
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        data[i] = (last + (0.02 * white)) / 1.02;
+        last = data[i];
+        data[i] *= 3.5;
+      }
+      return buffer;
+    }
+
+    function createGreenNoise(ctx, duration) {
+      // Green noise: band-passed brown noise centered around 500Hz
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        data[i] = (last + (0.02 * white)) / 1.02;
+        last = data[i];
+        data[i] *= 3.5;
+      }
+      // We'll apply bandpass via biquad filter node instead
+      return { buffer, needsBandpass: true, freq: 500, Q: 1.0 };
+    }
+
+    function createBlueNoise(ctx, duration) {
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        data[i] = white - last;
+        last = white;
+      }
+      // Normalize
+      let max = 0;
+      for (let i = 0; i < bufferSize; i++) max = Math.max(max, Math.abs(data[i]));
+      if (max > 0) for (let i = 0; i < bufferSize; i++) data[i] /= max;
+      return buffer;
+    }
+
+    function createVioletNoise(ctx, duration) {
+      const bufferSize = duration * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last1 = 0, last2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        data[i] = white - 2 * last1 + last2;
+        last2 = last1;
+        last1 = white;
+      }
+      let max = 0;
+      for (let i = 0; i < bufferSize; i++) max = Math.max(max, Math.abs(data[i]));
+      if (max > 0) for (let i = 0; i < bufferSize; i++) data[i] /= max;
+      return buffer;
+    }
+
+    const noiseGenerators = {
+      white: createWhiteNoise,
+      pink: createPinkNoise,
+      brown: createBrownNoise,
+      green: createGreenNoise,
+      blue: createBlueNoise,
+      violet: createVioletNoise,
+    };
+
+    function startNoise(id) {
+      const ctx = getAudioContext();
+      const result = noiseGenerators[id](ctx, 4);
+
+      let buffer, needsBandpass = false, bpFreq, bpQ;
+      if (result.needsBandpass) {
+        buffer = result.buffer;
+        needsBandpass = true;
+        bpFreq = result.freq;
+        bpQ = result.Q;
+      } else {
+        buffer = result;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0.8;
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+
+      if (needsBandpass) {
+        const bpFilter = ctx.createBiquadFilter();
+        bpFilter.type = 'bandpass';
+        bpFilter.frequency.value = bpFreq;
+        bpFilter.Q.value = bpQ;
+        source.connect(bpFilter);
+        bpFilter.connect(gain);
+      } else {
+        source.connect(gain);
+      }
+
+      gain.connect(analyser);
+      analyser.connect(ctx.destination);
+      source.start();
+
+      noiseStates[id].source = source;
+      noiseStates[id].gain = gain;
+      noiseStates[id].analyser = analyser;
+      noiseStates[id].playing = true;
+    }
+
+    function stopNoise(id) {
+      const state = noiseStates[id];
+      if (state.source) {
+        state.source.stop();
+        state.source.disconnect();
+        state.source = null;
+      }
+      if (state.gain) {
+        state.gain.disconnect();
+        state.gain = null;
+      }
+      state.analyser = null;
+      state.playing = false;
+    }
+
+    function toggleNoise(id) {
+      const state = noiseStates[id];
+      if (state.playing) {
+        stopNoise(id);
+        updateCardUI(id);
+      } else {
+        // Stop any other playing noise first
+        NOISES.forEach(n => {
+          if (noiseStates[n.id].playing) {
+            stopNoise(n.id);
+            updateCardUI(n.id);
+          }
+        });
+        startNoise(id);
+        updateCardUI(id);
+      }
+    }
+
+    function updateCardUI(id) {
+      const state = noiseStates[id];
+      const card = document.querySelector(`.noise-card[data-noise="${id}"]`);
+      const btn = card.querySelector('.toggle-btn');
+      card.classList.toggle('active', state.playing);
+      btn.classList.toggle('playing', state.playing);
+      btn.innerHTML = state.playing ? pauseSVG : playSVG;
+    }
+
+    // Waveform rendering
+    function drawWaveform(canvas, analyser, accent) {
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteTimeDomainData(dataArray);
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.beginPath();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = accent;
+
+      const sliceWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    }
+
+    const accentColors = {
+      white: '#e0e0e8',
+      pink: '#f472b6',
+      brown: '#d97706',
+      green: '#c4f72a',
+      blue: '#60a5fa',
+      violet: '#a78bfa',
+    };
+
+    function animateWaveforms() {
+      NOISES.forEach(n => {
+        const state = noiseStates[n.id];
+        const canvas = document.getElementById(`waveform-${n.id}`);
+        if (state.playing && state.analyser && canvas) {
+          drawWaveform(canvas, state.analyser, accentColors[n.id]);
+        } else if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Draw flat line
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+          ctx.moveTo(0, canvas.height / 2);
+          ctx.lineTo(canvas.width, canvas.height / 2);
+          ctx.stroke();
+        }
+      });
+      requestAnimationFrame(animateWaveforms);
+    }
+
+    // Build UI
+    function buildGrid() {
+      const grid = document.getElementById('noiseGrid');
+      NOISES.forEach(n => {
+        noiseStates[n.id] = { playing: false, source: null, gain: null, analyser: null };
+
+        const card = document.createElement('div');
+        card.className = 'noise-card';
+        card.dataset.noise = n.id;
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="card-info">
+              <div class="card-icon">${n.icon}</div>
+              <div>
+                <div class="card-title">Ruído ${n.name}</div>
+                <div class="card-subtitle">${n.sub}</div>
+              </div>
+            </div>
+            <button class="toggle-btn" aria-label="Tocar ruído ${n.name.toLowerCase()}">${playSVG}</button>
+          </div>
+          <div class="waveform">
+            <canvas id="waveform-${n.id}" width="400" height="32"></canvas>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        card.querySelector('.toggle-btn').addEventListener('click', () => toggleNoise(n.id));
+      });
+    }
+
+    // Init
+    buildGrid();
+    animateWaveforms();
+
+    // Resize canvases
+    function resizeCanvases() {
+      NOISES.forEach(n => {
+        const canvas = document.getElementById(`waveform-${n.id}`);
+        if (canvas) {
+          const rect = canvas.parentElement.getBoundingClientRect();
+          canvas.width = rect.width;
+          canvas.height = rect.height;
+        }
+      });
+    }
+    window.addEventListener('resize', resizeCanvases);
+    setTimeout(resizeCanvases, 100);
+  </script>
+</body>
+</html>

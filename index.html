@@ -270,16 +270,6 @@
       --card-glow: var(--lime-glow);
       --card-bg-icon: rgba(196, 247, 42, 0.1);
     }
-    .noise-card[data-noise="blue"] {
-      --card-accent: #60a5fa;
-      --card-glow: rgba(96, 165, 250, 0.2);
-      --card-bg-icon: rgba(96, 165, 250, 0.1);
-    }
-    .noise-card[data-noise="violet"] {
-      --card-accent: var(--purple-secondary);
-      --card-glow: var(--purple-glow);
-      --card-bg-icon: rgba(167, 139, 250, 0.1);
-    }
 
     /* Footer */
     .footer {
@@ -324,8 +314,6 @@
       { id: 'pink',   name: 'Rosa',    sub: 'Suave e equilibrado · relaxamento',    icon: 'P' },
       { id: 'brown',  name: 'Marrom',  sub: 'Grave e profundo · sono e meditação',  icon: 'M' },
       { id: 'green',  name: 'Verde',   sub: 'Natural e orgânico · tranquilidade',   icon: 'V' },
-      { id: 'blue',   name: 'Azul',    sub: 'Brilhante e energético · atenção',     icon: 'A' },
-      { id: 'violet', name: 'Violeta', sub: 'Agudo e intenso · criatividade',       icon: 'VI' },
     ];
 
     const playSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
@@ -404,47 +392,11 @@
       return { buffer, needsBandpass: true, freq: 500, Q: 1.0 };
     }
 
-    function createBlueNoise(ctx, duration) {
-      const bufferSize = duration * ctx.sampleRate;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      let last = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        data[i] = white - last;
-        last = white;
-      }
-      // Normalize
-      let max = 0;
-      for (let i = 0; i < bufferSize; i++) max = Math.max(max, Math.abs(data[i]));
-      if (max > 0) for (let i = 0; i < bufferSize; i++) data[i] /= max;
-      return buffer;
-    }
-
-    function createVioletNoise(ctx, duration) {
-      const bufferSize = duration * ctx.sampleRate;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      let last1 = 0, last2 = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        data[i] = white - 2 * last1 + last2;
-        last2 = last1;
-        last1 = white;
-      }
-      let max = 0;
-      for (let i = 0; i < bufferSize; i++) max = Math.max(max, Math.abs(data[i]));
-      if (max > 0) for (let i = 0; i < bufferSize; i++) data[i] /= max;
-      return buffer;
-    }
-
     const noiseGenerators = {
       white: createWhiteNoise,
       pink: createPinkNoise,
       brown: createBrownNoise,
       green: createGreenNoise,
-      blue: createBlueNoise,
-      violet: createVioletNoise,
     };
 
     function startNoise(id) {
@@ -570,8 +522,6 @@
       pink: '#f472b6',
       brown: '#d97706',
       green: '#c4f72a',
-      blue: '#60a5fa',
-      violet: '#a78bfa',
     };
 
     function animateWaveforms() {
